@@ -129,7 +129,12 @@ que SPEC-0009 web descartó por impreciso.
   de la dirección, porque el orden natural pasa a ser tocar «Usar mi
   ubicación» y después corregir lo que vino. En corrección la dirección sigue
   arriba: ahí lo común es arreglar un dato, no ubicar.
-- **El bloque «Ubicación en el mapa» aparece siempre en la hoja de propiedad**,
+- **El bloque «Ubicación en el mapa» aparece en toda pantalla que cree una
+  propiedad**: la hoja de propiedad y **el alta de cliente**, que carga la
+  primera. En el alta de cliente, elegir punto vuelve obligatoria la dirección
+  —que ahí es opcional—, porque sin ella no se crea la propiedad y el punto se
+  perdería sin que nadie lo note.
+- **El bloque aparece siempre en la hoja de propiedad**,
   también en el alta. En el alta, «Fijar en el mapa» abre la misma pantalla
   completa de SPEC-0007, pero **devuelve el punto en vez de guardarlo**: el punto
   y el radio se guardan con la propiedad, en la misma inserción local y en la
@@ -481,6 +486,7 @@ que alguien se olvidó.
 
 | Fecha | Estado | Nota |
 |-------|--------|------|
+| 2026-09-23 | implementado | **Hueco encontrado probando**: el alta de cliente carga la primera propiedad y se había quedado sin el mapa, así que esa propiedad nacía sin punto. El `goal` ya lo cubría —dice «el alta de la propiedad», sin calificar cuál pantalla—, así que es un arreglo del spec y no alcance nuevo. Se calcó el patrón de la hoja: bloque arriba de la dirección, rellenado con su hoja de revisión, y la dirección pasa a obligatoria cuando hay punto. Tres tests nuevos, suite en 502 |
 | 2026-09-23 | implementado | **PR #50 mergeado.** Los 40 criterios cumplidos, 499 tests en el móvil y `openapi.json` sin cambios, que era criterio del spec: el contrato ya aceptaba el punto al crear. Nació como un arreglo de flujo —el mapa solo se abría corrigiendo una propiedad ya creada— y creció a cinco tramos, los cuatro últimos salidos de probar la app en un teléfono real |
 | 2026-09-22 | en-implementacion | `code-reviewer`, segunda pasada del quinto tramo: **LISTO PARA PR**, sin hallazgos abiertos ni nuevos. Verificó además que reconstruir los dos archivos de test —los trunqué por error al editarlos— no perdió ningún caso ni debilitó ninguna aserción. **Los 40 criterios marcados; queda el commit, el PR y el merge, que hace @jaca.** Al mergear, este spec pasa a Implementado y el BOARD lo refleja en el mismo acto |
 | 2026-09-22 | en-implementacion | `code-reviewer` sobre el quinto tramo: **un GRAVE**, arreglado. Aceptar la comparación solo mutaba el formulario abierto: cerrar la hoja sin tocar «Guardar» dejaba el punto nuevo sincronizado y la dirección vieja intacta, que es exactamente el bug que el tramo venía a resolver. Ahora escribe y encola en el acto. Con él, dos MEDIO: faltaba el número de búsqueda y el gate del botón que el tercer tramo ya había resuelto para el alta, y el país salía como código ISO de un lado y como nombre del otro. La carrera al leer el punto del stream se cerró de raíz: la pantalla del mapa devuelve el punto que guardó en vez de `true` |
