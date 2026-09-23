@@ -100,7 +100,10 @@ void main() {
 
       // La única del cliente elegido, y la del otro cliente no aparece.
       expect(find.text('412 Ellsworth Dr, Silver Spring, MD'), findsWidgets);
-      expect(find.text('Elija una propiedad'), findsOne); // el título de la hoja
+      expect(
+        find.text('Elija una propiedad'),
+        findsOne,
+      ); // el título de la hoja
     });
 
     testWithApp('un cliente sin propiedades lo dice', (tester) async {
@@ -274,7 +277,9 @@ void main() {
       final obra = await db.select(db.projects).get();
       final sitio = await db.select(db.sites).get();
 
-      final nuevo = cliente.where((c) => c.displayName == 'Cliente al lado').single;
+      final nuevo = cliente
+          .where((c) => c.displayName == 'Cliente al lado')
+          .single;
       final suSitio = sitio.where((s) => s.customerId == nuevo.id).single;
       expect(obra, hasLength(1));
       expect(obra.first.customerId, nuevo.id);
@@ -284,8 +289,14 @@ void main() {
       // aplicarse antes que el cliente del que cuelga.
       final pendientes = await Outbox(db, const Uuid()).pending();
       final tipos = pendientes.map((o) => o.type).toList();
-      expect(tipos.indexOf('customer.create'), lessThan(tipos.indexOf('site.create')));
-      expect(tipos.indexOf('site.create'), lessThan(tipos.indexOf('project.create')));
+      expect(
+        tipos.indexOf('customer.create'),
+        lessThan(tipos.indexOf('site.create')),
+      );
+      expect(
+        tipos.indexOf('site.create'),
+        lessThan(tipos.indexOf('project.create')),
+      );
     });
   });
 
@@ -337,7 +348,9 @@ void main() {
 
       expect(find.byType(OutlinedButton), findsNothing);
       expect(
-        find.text('Una obra terminada o cancelada no vuelve a cambiar de estado'),
+        find.text(
+          'Una obra terminada o cancelada no vuelve a cambiar de estado',
+        ),
         findsOne,
       );
     });
@@ -451,7 +464,9 @@ void main() {
       // Un toque por error en algo irreversible tiene que poder deshacerse antes
       // de que pase.
       expect(find.text('¿Marcar la obra como Terminado?'), findsOne);
-      await tester.tap(find.widgetWithText(TextButton, 'Cancelar'));
+      // La salida es un botón de ancho completo y no un texto suelto: en la
+      // hoja las dos opciones se ven como opciones.
+      await tester.tap(find.widgetWithText(OutlinedButton, 'Cancelar').last);
       await tester.pumpAndSettle();
 
       expect(await estadoEnBase(), 'IN_PROGRESS');
@@ -480,13 +495,26 @@ void main() {
       expect(find.textContaining('No se borra nada'), findsOne);
     });
 
+    testWithApp('solo cancelar avisa en rojo', (tester) async {
+      await abrirDetalle(tester, ProjectStatus.inProgress);
+
+      await tester.tap(find.widgetWithText(OutlinedButton, 'Terminado'));
+      await tester.pumpAndSettle();
+      final terminar = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Sí, marcar'),
+      );
+      // Terminar es el cierre bueno del trabajo: no lleva el rojo, que está
+      // reservado para lo que se lee como advertencia.
+      expect(terminar.style?.backgroundColor, isNull);
+    });
+
     testWithApp('pausar no pregunta: se hace a cada rato', (tester) async {
       await abrirDetalle(tester, ProjectStatus.inProgress);
 
       await tester.tap(find.widgetWithText(OutlinedButton, 'En pausa'));
       await tester.pumpAndSettle();
 
-      expect(find.byType(AlertDialog), findsNothing);
+      expect(find.text('¿Marcar la obra como En pausa?'), findsNothing);
       expect(await estadoEnBase(), 'ON_HOLD');
     });
   });
@@ -586,10 +614,16 @@ void main() {
       final unaLinea = await alturaDe('Cliente');
       final propiedad = await alturaDe('Propiedad');
 
-      expect(nombre, unaLinea,
-          reason: '"Nombre de la obra" tendría que entrar en una línea');
-      expect(propiedad, unaLinea,
-          reason: '"Propiedad" tendría que entrar en una línea');
+      expect(
+        nombre,
+        unaLinea,
+        reason: '"Nombre de la obra" tendría que entrar en una línea',
+      );
+      expect(
+        propiedad,
+        unaLinea,
+        reason: '"Propiedad" tendría que entrar en una línea',
+      );
       expect(tester.takeException(), isNull);
     });
   });
@@ -647,7 +681,9 @@ void main() {
       // que le faltan las opciones, así que va con su fondo y su ayuda.
       await abrirAlta(tester);
       await tester.scrollUntilVisible(
-        find.text('El cliente verá esta obra por etapas'),
+        find.text(
+          'El cliente verá esta obra por etapas. El enlace se genera desde la ficha de la obra y puede compartirlo con el cliente cuando quiera.',
+        ),
         200,
         // El formulario anida scrollables: sin `.first` el finder devuelve
         // varios y `scrollUntilVisible` revienta pidiendo uno solo.
@@ -660,7 +696,9 @@ void main() {
       );
 
       final aviso = find.ancestor(
-        of: find.text('El cliente verá esta obra por etapas'),
+        of: find.text(
+          'El cliente verá esta obra por etapas. El enlace se genera desde la ficha de la obra y puede compartirlo con el cliente cuando quiera.',
+        ),
         matching: find.byType(StatusChip),
       );
       expect(aviso, findsOne);
@@ -668,6 +706,9 @@ void main() {
         find.descendant(of: aviso, matching: find.byType(HelpButton)),
         findsOne,
       );
+      // Verde y no gris: lo que dice es que nada sale sin que lo mande, y en
+      // gris se perdía entre los campos.
+      expect(tester.widget<StatusChip>(aviso).tone, StatusTone.success);
     });
 
     testWithApp('no se puede crear una obra ya cancelada', (tester) async {

@@ -19,14 +19,15 @@ Future<bool> confirmarAccionDestructiva(
   required String confirmar,
   required String cancelar,
   IconData icono = Icons.delete_outline,
-}) =>
-    _preguntar(context,
-        titulo: titulo,
-        cuerpo: cuerpo,
-        confirmar: confirmar,
-        cancelar: cancelar,
-        icono: icono,
-        destructiva: true);
+}) => _preguntar(
+  context,
+  titulo: titulo,
+  cuerpo: cuerpo,
+  confirmar: confirmar,
+  cancelar: cancelar,
+  icono: icono,
+  destructiva: true,
+);
 
 /// Confirmar algo que sí se puede deshacer, pero que sale de la empresa.
 ///
@@ -41,14 +42,15 @@ Future<bool> confirmarAccion(
   required String confirmar,
   required String cancelar,
   required IconData icono,
-}) =>
-    _preguntar(context,
-        titulo: titulo,
-        cuerpo: cuerpo,
-        confirmar: confirmar,
-        cancelar: cancelar,
-        icono: icono,
-        destructiva: false);
+}) => _preguntar(
+  context,
+  titulo: titulo,
+  cuerpo: cuerpo,
+  confirmar: confirmar,
+  cancelar: cancelar,
+  icono: icono,
+  destructiva: false,
+);
 
 Future<bool> _preguntar(
   BuildContext context, {
@@ -97,52 +99,67 @@ class _Confirmacion extends StatelessWidget {
     final spacing = context.spacing;
     final colors = context.colors;
 
+    // El cuerpo scrollea y los botones no: un motivo largo en un teléfono
+    // chico desbordaba la hoja, y las dos salidas tienen que quedar a la vista.
     return SafeArea(
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(spacing.lg, 0, spacing.lg, spacing.lg),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(icono, color: destructiva ? colors.error : colors.primary),
-                SizedBox(width: spacing.sm),
-                Expanded(
-                  child: Text(titulo, style: context.texts.titleLarge),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(context).height * 0.8,
+        ),
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(spacing.lg, 0, spacing.lg, spacing.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    icono,
+                    color: destructiva ? colors.error : colors.primary,
+                  ),
+                  SizedBox(width: spacing.sm),
+                  Expanded(
+                    child: Text(titulo, style: context.texts.titleLarge),
+                  ),
+                ],
+              ),
+              SizedBox(height: spacing.sm),
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Text(
+                    cuerpo,
+                    style: context.texts.bodyMedium?.copyWith(
+                      color: colors.onSurfaceVariant,
+                    ),
+                  ),
                 ),
-              ],
-            ),
-            SizedBox(height: spacing.sm),
-            Text(
-              cuerpo,
-              style: context.texts.bodyMedium
-                  ?.copyWith(color: colors.onSurfaceVariant),
-            ),
-            SizedBox(height: spacing.lg),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: () => Navigator.of(context).pop(true),
-                icon: Icon(icono),
-                label: Text(confirmar),
-                style: destructiva
-                    ? FilledButton.styleFrom(
-                        backgroundColor: colors.error,
-                        foregroundColor: colors.onError,
-                      )
-                    : null,
               ),
-            ),
-            SizedBox(height: spacing.sm),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: Text(cancelar),
+              SizedBox(height: spacing.lg),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  icon: Icon(icono),
+                  label: Text(confirmar),
+                  style: destructiva
+                      ? FilledButton.styleFrom(
+                          backgroundColor: colors.error,
+                          foregroundColor: colors.onError,
+                        )
+                      : null,
+                ),
               ),
-            ),
-          ],
+              SizedBox(height: spacing.sm),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: Text(cancelar),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

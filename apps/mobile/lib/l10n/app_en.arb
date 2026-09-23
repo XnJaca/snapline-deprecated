@@ -244,7 +244,7 @@
   "projectConfirmCancelledBody": "A cancelled project does not change status again. Nothing is deleted: its hours and photos stay, and it stops showing in the main list.",
   "projectConfirmAccept": "Yes, mark it",
   "projectStatusTerminal": "A finished or cancelled project does not change status again",
-  "projectVisibilityStages": "The customer will see this project by stages",
+  "projectVisibilityStages": "Your client will see this job by stages. The link is generated from the job's page, and you can share it whenever you want.",
   "projectVisibilityStagesHelpTitle": "What the customer sees of the project",
   "projectVisibilityStagesHelpBody": "Your customer gets a private link to this job and follows its progress through three stages: Starting, In progress and Finished.\n\nThe seven statuses you work with map onto those three. Lead, Estimated and Scheduled appear as Starting; In progress and On hold, as In progress.\n\nThe portal reports progress on the job, not how your company runs it: no hours, no costs, and no photos you have not shared.\n\nYou can change what the customer sees at any time, from the job's details.",
   "projectDetailSectionWhat": "The job",

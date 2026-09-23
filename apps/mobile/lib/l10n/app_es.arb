@@ -206,7 +206,7 @@
   "projectConfirmCancelledBody": "Una obra cancelada no vuelve a cambiar de estado. No se borra nada: sus horas y sus fotos quedan, y deja de aparecer en la lista principal.",
   "projectConfirmAccept": "Sí, marcar",
   "projectStatusTerminal": "Una obra terminada o cancelada no vuelve a cambiar de estado",
-  "projectVisibilityStages": "El cliente verá esta obra por etapas",
+  "projectVisibilityStages": "El cliente verá esta obra por etapas. El enlace se genera desde la ficha de la obra y puede compartirlo con el cliente cuando quiera.",
   "projectVisibilityStagesHelpTitle": "Qué ve el cliente de la obra",
   "projectVisibilityStagesHelpBody": "Su cliente recibe un enlace privado a esta obra y sigue su avance en tres etapas: Inicio, En proceso y Finalizado.\n\nLos siete estados con los que usted trabaja se agrupan en esas tres. Prospecto, Estimado y Agendado se muestran como Inicio; En proceso y En pausa, como En proceso.\n\nEl portal informa el avance de la obra, no la operación de su empresa: no incluye horas, costos ni fotos que usted no haya compartido.\n\nPuede cambiar qué ve el cliente cuando quiera, desde la ficha de la obra.",
   "projectDetailSectionWhat": "El trabajo",

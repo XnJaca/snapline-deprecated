@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme/theme_extensions.dart';
+import '../../core/widgets/confirm_sheet.dart';
 import '../../core/widgets/labeled_value.dart';
 import '../../core/widgets/section_header.dart';
 import '../../core/widgets/status_chip.dart';
@@ -278,28 +279,36 @@ Future<void> _cambiar(
   final l10n = AppLocalizations.of(context);
 
   if (_terminales.contains(destino)) {
-    final confirmado = await showDialog<bool>(
-      context: context,
-      builder: (dialogo) => AlertDialog(
-        title: Text(l10n.projectConfirmTitle(destino.label(l10n))),
-        content: Text(
-          destino == ProjectStatus.completed
-              ? l10n.projectConfirmCompletedBody
-              : l10n.projectConfirmCancelledBody,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogo).pop(false),
-            child: Text(l10n.actionCancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogo).pop(true),
-            child: Text(l10n.projectConfirmAccept),
-          ),
-        ],
-      ),
-    );
-    if (confirmado != true) return;
+    // Hoja y no diálogo, como toda confirmación de la app. El rojo queda para
+    // cancelar: terminar es igual de final, pero es el cierre bueno del
+    // trabajo y no se lee como una advertencia.
+    final cancela = destino == ProjectStatus.cancelled;
+    final titulo = l10n.projectConfirmTitle(destino.label(l10n));
+    final cuerpo = cancela
+        ? l10n.projectConfirmCancelledBody
+        : l10n.projectConfirmCompletedBody;
+
+    final bool confirmado;
+    if (cancela) {
+      confirmado = await confirmarAccionDestructiva(
+        context,
+        titulo: titulo,
+        cuerpo: cuerpo,
+        confirmar: l10n.projectConfirmAccept,
+        cancelar: l10n.actionCancel,
+        icono: Icons.cancel_outlined,
+      );
+    } else {
+      confirmado = await confirmarAccion(
+        context,
+        titulo: titulo,
+        cuerpo: cuerpo,
+        confirmar: l10n.projectConfirmAccept,
+        cancelar: l10n.actionCancel,
+        icono: Icons.check_circle_outline,
+      );
+    }
+    if (!confirmado) return;
   }
 
   await ref.read(projectRepositoryProvider).changeStatus(projectId, destino);

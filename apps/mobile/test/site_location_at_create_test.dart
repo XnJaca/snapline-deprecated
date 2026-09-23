@@ -260,6 +260,69 @@ void main() {
     );
   });
 
+  group('el alta de cliente', () {
+    Widget app() => testApp(
+      db: db,
+      session: buildSession(),
+      lastDestination: AppDestination.customers,
+    );
+
+    Future<void> abrirAlta(WidgetTester tester) async {
+      await pumpApp(tester, app());
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Nuevo cliente'));
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> verElMapa(WidgetTester tester) async {
+      await tester.scrollUntilVisible(
+        find.text('Ubicación en el mapa'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+    }
+
+    testWithApp('la primera propiedad también ofrece fijar el punto', (
+      tester,
+    ) async {
+      // El hueco que quedó al implementar SPEC-0013: esta pantalla crea una
+      // propiedad y no mostraba el mapa.
+      await abrirAlta(tester);
+      await verElMapa(tester);
+
+      expect(find.text('Ubicación en el mapa'), findsOne);
+      expect(find.text('Fijar en el mapa'), findsOne);
+    });
+
+    testWithApp('el mapa vive en la sección de la propiedad', (tester) async {
+      await abrirAlta(tester);
+      await verElMapa(tester);
+
+      // Y no en la dirección de facturación, que está más arriba y no tiene
+      // geocerca que fijar.
+      final seccion = tester.getTopLeft(find.text('Propiedad'));
+      final mapa = tester.getTopLeft(find.text('Ubicación en el mapa'));
+      expect(seccion.dy, lessThan(mapa.dy));
+      expect(find.text('Ubicación en el mapa'), findsOne);
+    });
+
+    testWithApp('sin punto, el alta guarda como siempre', (tester) async {
+      await abrirAlta(tester);
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Nombre (obligatorio)').first,
+        'Jonathan Cruz',
+      );
+      await tester.tap(find.widgetWithText(FilledButton, 'Guardar'));
+      await tester.pumpAndSettle();
+
+      final clientes = await db.select(db.customers).get();
+      expect(clientes.single.displayName, 'Jonathan Cruz');
+      // Sin dirección escrita no hay propiedad: la primera es opcional, y eso
+      // no cambia.
+      expect(await db.select(db.sites).get(), isEmpty);
+    });
+  });
+
   group('el alta de obra', () {
     Widget app() => testApp(
       db: db,

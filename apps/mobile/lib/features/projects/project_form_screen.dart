@@ -317,7 +317,9 @@ class _ProjectFormScreenState extends ConsumerState<ProjectFormScreen> {
                     // ficha de la obra. Es un aviso y no un campo: suelto entre
                     // campos se leía como uno al que le faltan las opciones.
                     StatusChip(
-                      tone: StatusTone.info,
+                      // Verde y no gris: lo que dice es tranquilizador —nada
+                      // sale sin que lo mande— y en gris se perdía.
+                      tone: StatusTone.success,
                       label: l10n.projectVisibilityStages,
                       expand: true,
                       action: HelpButton(
