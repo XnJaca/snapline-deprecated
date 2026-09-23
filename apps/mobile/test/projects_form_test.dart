@@ -681,7 +681,9 @@ void main() {
       // que le faltan las opciones, así que va con su fondo y su ayuda.
       await abrirAlta(tester);
       await tester.scrollUntilVisible(
-        find.text('El cliente verá esta obra por etapas'),
+        find.text(
+          'El cliente verá esta obra por etapas. El enlace se genera desde la ficha de la obra y puede compartirlo con el cliente cuando quiera.',
+        ),
         200,
         // El formulario anida scrollables: sin `.first` el finder devuelve
         // varios y `scrollUntilVisible` revienta pidiendo uno solo.
@@ -694,7 +696,9 @@ void main() {
       );
 
       final aviso = find.ancestor(
-        of: find.text('El cliente verá esta obra por etapas'),
+        of: find.text(
+          'El cliente verá esta obra por etapas. El enlace se genera desde la ficha de la obra y puede compartirlo con el cliente cuando quiera.',
+        ),
         matching: find.byType(StatusChip),
       );
       expect(aviso, findsOne);
@@ -702,6 +706,9 @@ void main() {
         find.descendant(of: aviso, matching: find.byType(HelpButton)),
         findsOne,
       );
+      // Verde y no gris: lo que dice es que nada sale sin que lo mande, y en
+      // gris se perdía entre los campos.
+      expect(tester.widget<StatusChip>(aviso).tone, StatusTone.success);
     });
 
     testWithApp('no se puede crear una obra ya cancelada', (tester) async {
