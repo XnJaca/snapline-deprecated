@@ -213,6 +213,23 @@ Ninguno bloquea el prototipo: el recorrido corre completo en desarrollo.
       de precios y la nota de no mencionarle a William la fase 1. Pasar el repo a
       privado no deshace la exposición: sirve para adelante, no para atrás.
 
+- [ ] **Tres cadenas del móvil siguen en voseo, y el resto de la app es de usted.**
+      `todayNoAssignments`, `todayCheerLate` y `obrasSectionAsignadas` dicen
+      «no tenés», «no te olvidés» y «estás asignado», contra 31 cadenas en voz
+      de usted. Las tres son de las pantallas de campo —Hoy y Obras—, no de
+      las que tocó SPEC-0013.
+
+      *Encontrado el 2026-09-22 al reescribir el copy de la hoja de revisión de
+      dirección.* Ahí salieron siete más, todas de la pantalla del mapa, y esas
+      **ya se corrigieron** en la rama de SPEC-0013 porque era la pantalla que
+      el spec estaba tocando. Estas tres quedaron afuera a propósito: cambiarlas
+      es tocar dos pantallas que el spec no abre, y sus tests afirman el texto.
+
+      No rompe nada en ejecución. Es la clase de inconsistencia que se nota
+      cuando el mismo usuario pasa de una pantalla a otra, y la app le habla de
+      dos maneras distintas. **La voz del producto es de usted**, y es la que
+      el panel ya reusa del móvil.
+
 - [ ] **El copy del móvil dice "tres etapas" y ahora son cuatro.**
       `projectVisibilityStagesHelpBody`, en `app_es.arb` y `app_en.arb`, describe
       lo que ve el cliente como *"tres etapas: Inicio, En proceso y Finalizado"*.

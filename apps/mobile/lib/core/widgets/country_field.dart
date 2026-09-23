@@ -17,11 +17,13 @@ class CountryField extends StatelessWidget {
     required this.selected,
     required this.label,
     required this.onChanged,
+    this.enabled = true,
   });
 
   final IsoCode selected;
   final String label;
   final ValueChanged<IsoCode> onChanged;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
@@ -38,16 +40,14 @@ class CountryField extends StatelessWidget {
     // aparte.
     return InkWell(
       borderRadius: BorderRadius.circular(spacing.radiusMd),
-      onTap: () => _elegir(context),
+      onTap: enabled ? () => _elegir(context) : null,
       child: InputDecorator(
-        decoration: InputDecoration(labelText: label),
+        decoration: InputDecoration(labelText: label, enabled: enabled),
         child: Row(
           children: [
             // El nombre traducido y no la bandera: a este tamaño una bandera se
             // confunde con otra, y las banderas ya están en la hoja al elegir.
-            Expanded(
-              child: Text(nombre, style: context.texts.bodyLarge),
-            ),
+            Expanded(child: Text(nombre, style: context.texts.bodyLarge)),
             SizedBox(width: spacing.sm),
             Icon(Icons.arrow_drop_down, color: colors.onSurfaceVariant),
           ],

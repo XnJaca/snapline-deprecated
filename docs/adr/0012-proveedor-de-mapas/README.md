@@ -9,7 +9,7 @@ supersedes: null
 superseded_by: null
 related_specs: ["SPEC-0007", "SPEC-0008"]
 created: 2026-08-10
-updated: 2026-08-10
+updated: 2026-09-22
 deciders:
   - jaca
 tags:
@@ -152,6 +152,31 @@ por plataforma duplica el trabajo de una pantalla que se escribe una vez.
   la posición de quien carga la obra, una sola vez y solo al tocar el botón; en
   SPEC-0008 se lee la de un trabajador en cada marcaje, que es otra cosa. Se cruza con
   el consentimiento firmado que [[../../DECISIONES|DECISIONES]] tiene pendiente.
+
+## Adenda 2026-09-22 — el geocodificador del teléfono
+
+SPEC-0013 agrega el sentido que esta decisión **no** había descartado: del punto
+a la dirección. Al fijar el punto en el alta de una propiedad, los campos vacíos
+de la dirección se rellenan solos.
+
+Se hace con **`geocoding`**, de Baseflow —los mismos de `geolocator`—, que llama a
+`CLGeocoder` en iOS y a `Geocoder` en Android. **Sin llave, sin Google Cloud, sin
+SKU facturable**: es un servicio del sistema. Necesita red y cada plataforma tiene
+su límite de llamadas, que a una consulta por propiedad no se alcanza.
+
+El **otro sentido también entra, y solo hasta la cámara**: un campo de búsqueda
+en la pantalla del mapa lleva la vista a una dirección escrita, con
+`locationFromAddress` del mismo paquete gratuito. Es el uso que la sección de
+costos de arriba ya describía —*"cargar una obra desde la oficina, centrando el
+mapa cerca de la casa"*— y que ahí quedaba afuera porque se suponía que exigía el
+SKU pago; con el geocodificador del sistema no lo exige.
+
+Lo que esta adenda **no** cambia, y es la razón de fondo del ADR: **una dirección
+geocodificada nunca fija el punto**. Cae en el centro de la manzana o sobre la
+calle, y acá el punto **es** la geocerca: uno aproximado hace que las banderas de
+asistencia mientan en las dos direcciones. La búsqueda mueve la cámara y nada
+más; el punto lo sigue poniendo el GPS o el dedo. La API de Geocoding de Google,
+que es lo que la sección de costos describe, sigue afuera.
 
 ## Qué lo revierte
 

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../api/models/project_status.dart';
 import '../../core/theme/theme_extensions.dart';
+import '../../core/session/session_controller.dart';
 import '../../core/widgets/empty_state.dart';
 import '../../core/widgets/form_footer.dart';
 import '../../core/widgets/help_sheet.dart';
@@ -11,6 +12,7 @@ import '../../core/widgets/status_chip.dart';
 import '../../data/repositories/customer_repository.dart';
 import '../../data/repositories/project_repository.dart';
 import '../../l10n/app_localizations.dart';
+import '../customers/site_location_screen.dart';
 import 'project_pickers.dart';
 import 'project_status_display.dart';
 
@@ -242,15 +244,15 @@ class _ProjectFormScreenState extends ConsumerState<ProjectFormScreen> {
                     _Selector(
                       label: l10n.fieldRequiredLabel(l10n.projectFieldSite),
                       value: sitio?.oneLine,
-                    // Sin cliente el selector no tiene de dónde elegir, y decirlo
-                    // es más útil que un campo muerto.
-                    hint: _customerId == null
-                        ? l10n.projectFieldSitePickCustomerFirst
-                        : null,
-                    // Material tapa el `helperText` cuando hay `errorText`, así
-                    // que el mensaje accionable va como error: "este cliente no
-                    // tiene propiedades, agregue una" sirve más que "falta elegir
-                    // la propiedad" cuando no hay ninguna que elegir.
+                      // Sin cliente el selector no tiene de dónde elegir, y decirlo
+                      // es más útil que un campo muerto.
+                      hint: _customerId == null
+                          ? l10n.projectFieldSitePickCustomerFirst
+                          : null,
+                      // Material tapa el `helperText` cuando hay `errorText`, así
+                      // que el mensaje accionable va como error: "este cliente no
+                      // tiene propiedades, agregue una" sirve más que "falta elegir
+                      // la propiedad" cuando no hay ninguna que elegir.
                       error: switch ((_customerId, _siteId, sitios.isEmpty)) {
                         (null, _, _) => null,
                         (_, _, true) => l10n.projectFieldSiteNoneForCustomer,
@@ -259,6 +261,11 @@ class _ProjectFormScreenState extends ConsumerState<ProjectFormScreen> {
                       },
                       onTap: _customerId == null ? null : _elegirSitio,
                     ),
+                    // Se avisa, no se bloquea: guardar sin punto es válido.
+                    if (sitio case final sitio? when !sitio.hasLocation) ...[
+                      SizedBox(height: spacing.md),
+                      SiteWithoutLocationNotice(site: sitio),
+                    ],
                   ],
                   if (_esAlta) ...[
                     SizedBox(height: spacing.md),
@@ -286,7 +293,10 @@ class _ProjectFormScreenState extends ConsumerState<ProjectFormScreen> {
                     ),
                   ),
                   SizedBox(height: spacing.lg),
-                  Text(l10n.projectDetailSectionWhen, style: context.texts.titleSmall),
+                  Text(
+                    l10n.projectDetailSectionWhen,
+                    style: context.texts.titleSmall,
+                  ),
                   SizedBox(height: spacing.md),
                   _Fecha(
                     label: l10n.projectFieldStartDate,
@@ -327,6 +337,49 @@ class _ProjectFormScreenState extends ConsumerState<ProjectFormScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// El aviso de que la propiedad de la obra no tiene punto, con la salida de
+/// fijarlo ahí mismo. Lo usan el alta y la tab Detalle.
+///
+/// Al volver del mapa el aviso desaparece solo: quien lo muestra lee la
+/// propiedad del stream de Drift. Fijar escribe sobre la propiedad, que pide
+/// `customers.write`: sin ese permiso se dice que falta, sin la acción.
+class SiteWithoutLocationNotice extends ConsumerWidget {
+  const SiteWithoutLocationNotice({super.key, required this.site});
+
+  final SiteSummary site;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final sesion = ref.watch(sessionControllerProvider).value;
+    final puedeFijar =
+        sesion?.membership.permissions.contains('customers.write') ?? false;
+
+    if (!puedeFijar) {
+      return Text(
+        l10n.projectSiteNoLocation,
+        style: context.texts.bodyMedium?.copyWith(
+          color: context.colors.onSurfaceVariant,
+        ),
+      );
+    }
+
+    return StatusChip(
+      tone: StatusTone.warning,
+      label: l10n.projectFieldSiteNoLocation,
+      expand: true,
+      action: TextButton(
+        onPressed: () => Navigator.of(context).push(
+          MaterialPageRoute<bool>(
+            builder: (_) => SiteLocationScreen(site: site),
+          ),
+        ),
+        child: Text(l10n.siteLocationSet),
       ),
     );
   }
@@ -413,7 +466,9 @@ class _SoloLectura extends StatelessWidget {
       children: [
         Text(
           label,
-          style: context.texts.bodySmall?.copyWith(color: colors.onSurfaceVariant),
+          style: context.texts.bodySmall?.copyWith(
+            color: colors.onSurfaceVariant,
+          ),
         ),
         SizedBox(height: spacing.xs),
         Text(value.isEmpty ? '—' : value, style: context.texts.bodyLarge),
@@ -505,7 +560,10 @@ class _Fecha extends StatelessWidget {
                 visualDensity: VisualDensity.compact,
               )
             else
-              Icon(Icons.calendar_today_outlined, color: colors.onSurfaceVariant),
+              Icon(
+                Icons.calendar_today_outlined,
+                color: colors.onSurfaceVariant,
+              ),
           ],
         ),
       ),

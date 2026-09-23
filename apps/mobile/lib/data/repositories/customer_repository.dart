@@ -91,6 +91,16 @@ class SiteSummary {
   /// Nulo es válido: cae al default, no es un formulario a medio llenar.
   final int? geofenceRadiusM;
 
+  factory SiteSummary.fromLocal(LocalSite fila) => SiteSummary(
+    id: fila.id,
+    customerId: fila.customerId,
+    address: AddressJson.decode(fila.address),
+    pending: fila.syncStatus != SyncStatus.synced,
+    lat: fila.lat,
+    lng: fila.lng,
+    geofenceRadiusM: fila.geofenceRadiusM,
+  );
+
   /// Los dos o ninguno: media coordenada no ubica nada.
   bool get hasLocation => lat != null && lng != null;
 
@@ -206,25 +216,27 @@ class CustomerRepository {
     final cuando = occurredAt ?? DateTime.now();
 
     await _db.transaction(() async {
-      await _db.into(_db.customers).insert(
-        CustomersCompanion.insert(
-          id: id,
-          // Lo pone el servidor al aplicar; en local alcanza para que la fila
-          // exista y la pantalla la muestre.
-          companyId: '',
-          updatedAt: cuando,
-          syncStatus: const Value(SyncStatus.pending),
-          displayName: input.displayName,
-          firstName: Value(input.firstName),
-          lastName: Value(input.lastName),
-          companyName: Value(input.companyName),
-          email: Value(input.email),
-          phone: Value(input.phone),
-          billingAddress: Value(AddressJson.encode(input.billingAddress)),
-          source: Value(input.source),
-          notes: Value(input.notes),
-        ),
-      );
+      await _db
+          .into(_db.customers)
+          .insert(
+            CustomersCompanion.insert(
+              id: id,
+              // Lo pone el servidor al aplicar; en local alcanza para que la fila
+              // exista y la pantalla la muestre.
+              companyId: '',
+              updatedAt: cuando,
+              syncStatus: const Value(SyncStatus.pending),
+              displayName: input.displayName,
+              firstName: Value(input.firstName),
+              lastName: Value(input.lastName),
+              companyName: Value(input.companyName),
+              email: Value(input.email),
+              phone: Value(input.phone),
+              billingAddress: Value(AddressJson.encode(input.billingAddress)),
+              source: Value(input.source),
+              notes: Value(input.notes),
+            ),
+          );
       await _outbox.enqueue(
         type: SyncOp.customerCreate,
         targetId: id,
@@ -239,7 +251,11 @@ class CustomerRepository {
   /// Corrige un cliente. Última escritura gana, así que se manda la ficha
   /// entera y no un diff: dos correcciones desde dos teléfonos no se mezclan
   /// campo por campo.
-  Future<void> update(String id, CustomerInput input, {DateTime? occurredAt}) async {
+  Future<void> update(
+    String id,
+    CustomerInput input, {
+    DateTime? occurredAt,
+  }) async {
     final cuando = occurredAt ?? DateTime.now();
 
     await _db.transaction(() async {
@@ -268,31 +284,54 @@ class CustomerRepository {
   }
 
   /// Agrega una propiedad y devuelve su id.
+  ///
+  /// El punto y el radio, si se fijaron en el alta, viajan en el mismo
+  /// `site.create`: una sola operación y no un `site.update` detrás.
   Future<String> addSite(
     String customerId,
     AddressDto address, {
+    double? lat,
+    double? lng,
+    int? geofenceRadiusM,
     DateTime? occurredAt,
   }) async {
     final id = _uuid.v7();
     final cuando = occurredAt ?? DateTime.now();
+    // Los dos o ninguno: media coordenada no ubica nada.
+    final conPunto = lat != null && lng != null;
 
     await _db.transaction(() async {
-      await _db.into(_db.sites).insert(
-        SitesCompanion.insert(
-          id: id,
-          companyId: '',
-          updatedAt: cuando,
-          syncStatus: const Value(SyncStatus.pending),
-          customerId: customerId,
-          address: AddressJson.encode(address)!,
-        ),
-      );
+      await _db
+          .into(_db.sites)
+          .insert(
+            SitesCompanion.insert(
+              id: id,
+              companyId: '',
+              updatedAt: cuando,
+              syncStatus: const Value(SyncStatus.pending),
+              customerId: customerId,
+              address: AddressJson.encode(address)!,
+              lat: Value(conPunto ? lat : null),
+              lng: Value(conPunto ? lng : null),
+              geofenceRadiusM: Value(conPunto ? geofenceRadiusM : null),
+            ),
+          );
       await _outbox.enqueue(
         type: SyncOp.siteCreate,
         targetId: id,
         // De qué cliente cuelga viaja en el payload: una propiedad no existe
         // suelta, y `targetId` es el id de la propiedad misma.
-        payload: {'customerId': customerId, 'address': address.toJson()},
+        payload: {
+          'customerId': customerId,
+          'address': address.toJson(),
+          if (conPunto) ...{
+            'lat': lat,
+            'lng': lng,
+            // Sin radio elegido no se manda el campo: el servidor lo valida
+            // como positivo y rechazaría un nulo explícito.
+            'geofenceRadiusM': ?geofenceRadiusM,
+          },
+        },
         occurredAt: cuando,
       );
     });
@@ -391,15 +430,7 @@ class CustomerRepository {
     pending: fila.syncStatus != SyncStatus.synced,
   );
 
-  static SiteSummary _sitio(LocalSite fila) => SiteSummary(
-    id: fila.id,
-    customerId: fila.customerId,
-    address: AddressJson.decode(fila.address),
-    pending: fila.syncStatus != SyncStatus.synced,
-    lat: fila.lat,
-    lng: fila.lng,
-    geofenceRadiusM: fila.geofenceRadiusM,
-  );
+  static SiteSummary _sitio(LocalSite fila) => SiteSummary.fromLocal(fila);
 }
 
 final customerRepositoryProvider = Provider<CustomerRepository>((ref) {
@@ -426,7 +457,9 @@ final customerByIdProvider = StreamProvider.family<CustomerDetail?, String>((
   return ref.watch(customerRepositoryProvider).watchOne(id);
 });
 
-final customerSitesProvider =
-    StreamProvider.family<List<SiteSummary>, String>((ref, customerId) {
-      return ref.watch(customerRepositoryProvider).watchSites(customerId);
-    });
+final customerSitesProvider = StreamProvider.family<List<SiteSummary>, String>((
+  ref,
+  customerId,
+) {
+  return ref.watch(customerRepositoryProvider).watchSites(customerId);
+});
