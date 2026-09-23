@@ -1,6 +1,77 @@
 # Decisiones tomadas y pendientes
 
-Contexto para arrancar sin repetir discusiones. Última actualización: 2026-08-12.
+Contexto para arrancar sin repetir discusiones. Última actualización: 2026-09-23.
+
+## El proyecto se depreca y se rearranca — 2026-09-23
+
+**Snapline queda congelado.** No se abandona la idea: se abandona esta
+construcción. @jaca lo decidió después de recorrer la app completa en su
+teléfono, sobre una base vacía, creando todo desde cero como lo haría William.
+
+**El motivo, textual:** *"el diseño y los flujos se me hacen demasiado confusos,
+realmente no me siento como usándolo"*.
+
+Esa frase es el veredicto contra la tesis número uno del producto, la que la
+visión pone primera: **se usa sin entrenamiento**. Si el dueño del producto,
+que conoce cada pantalla porque las especificó, no se siente usándola, un
+contratista de dos cuadrillas tampoco. Nada de lo que sigue importa si eso
+falla, y falló.
+
+### Qué no es el motivo
+
+No se cayó por calidad de ejecución ni por deuda técnica. Al congelarlo:
+
+| | |
+|---|---|
+| Commits | 221 |
+| Specs | 24, todos revisados antes de codear |
+| ADRs | 16 |
+| Deuda registrada | 18 fichas, con su disparador |
+| Tests | 503 en el móvil, 205 en el API, 92 en el panel |
+
+El API está entero: 92 endpoints, RLS en 30 tablas, publicación y portal del
+cliente incluidos. Las fotos suben a Backblaze de verdad. El proceso funcionó:
+los revisores atajaron un GRAVE el último día, y cada regla dura evitó el bug
+que decía que iba a evitar.
+
+**Lo que falló fue el producto, no el código.** Se construyó pantalla por
+pantalla contra specs correctos, y el conjunto no se siente como una
+herramienta. Un spec verifica que lo implementado hace lo que dice; ninguno
+verifica que las quince pantallas juntas se sientan como una sola cosa.
+
+### Qué rescatar cuando se rearranque
+
+Esto es lo que no hay que volver a pensar:
+
+- **El modelo de dominio.** Las 35 tablas y sus invariantes salieron de
+  conversaciones reales con William, no de suposiciones. Las reglas 9 a 20 del
+  `CLAUDE.md` —marcar nunca falla, dos marcas de tiempo, la tarifa se congela al
+  aprobar, las líneas copian y no referencian— son caras de descubrir y baratas
+  de copiar.
+- **Los cinco ADRs de fondo:** RLS desde el día uno, `openapi.json` como fuente
+  del contrato, Backblaze con URL firmada, el envelope de errores, y el
+  geocodificador del sistema en vez del SKU pago.
+- **La evidencia del brief**, incluida la contradicción del portal del cliente,
+  que William refutó con un *"no mandamos fotos"* y que entró igual por decisión
+  de producto.
+- **Lo que se probó este día**: los seis hallazgos de la tanda de QA, que son
+  exactamente los lugares donde el flujo se siente confuso.
+
+### Qué hacer distinto
+
+La lección que deja, y que el proceso nuevo tendría que atacar: **el recorrido
+completo no se probó hasta el final.** Cada spec se verificó solo, y recién al
+encadenarlos sobre una base vacía apareció que el conjunto no se sostiene. Un
+recorrido de punta a punta, en un teléfono, antes de la tercera pantalla, habría
+dado esta misma señal meses antes.
+
+### Estado del repositorio
+
+Se congela como está, sin borrar nada. Queda público en
+`github.com/XnJaca/snapline` con su historia completa, que es el valor que
+sobrevive.
+
+
 
 ## El photo release sale del producto — 2026-08-12
 

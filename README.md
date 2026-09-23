@@ -1,5 +1,15 @@
 # Snapline
 
+> [!WARNING]
+> **Proyecto deprecado el 2026-09-23.** Se congela y se rearranca desde cero con
+> otro enfoque de diseño y de flujos. No se abandona la idea, se abandona esta
+> construcción.
+>
+> El motivo está en [`docs/DECISIONES.md`](docs/DECISIONES.md), con qué rescatar
+> y qué hacer distinto. El modelo de dominio, los ADRs y la evidencia del brief
+> siguen valiendo; el recorrido de pantallas es lo que no funcionó.
+
+
 > Nombre en revisión. Ver `docs/NOMBRE.md` antes de registrar bundle ID o dominio.
 
 El software de gestión para el contratista que no tiene oficina — y que termina el ciclo publicando la obra terminada en su web y sus redes.

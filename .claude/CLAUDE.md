@@ -1,5 +1,14 @@
 # CLAUDE.md — Snapline
 
+> [!WARNING]
+> **Proyecto deprecado el 2026-09-23.** Congelado, se rearranca desde cero.
+> Las reglas de abajo siguen siendo correctas y son lo que hay que llevarse al
+> proyecto nuevo, sobre todo las del dominio (9 a 20). Ver la entrada del
+> 2026-09-23 en `docs/DECISIONES.md`.
+>
+> **No se implementa nada nuevo acá.**
+
+
 ## Qué es Snapline
 
 Software de gestión para el contratista que no tiene oficina, que cierra el ciclo
