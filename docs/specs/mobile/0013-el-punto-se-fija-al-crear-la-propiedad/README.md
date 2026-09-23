@@ -5,7 +5,7 @@ aliases:
   - "SPEC-0013: El punto se fija al crear la propiedad"
 type: spec
 platform: mobile
-status: en-implementacion
+status: implementado
 goal: "Fijar el punto en el mapa es parte del alta de la propiedad —la misma hoja, una sola operación `site.create`, la dirección rellenada desde el punto sin pisar lo escrito a mano, una búsqueda que lleva la cámara a una dirección sin fijar nunca el punto, y en una propiedad ya guardada mover el punto ofrece actualizar su dirección comparándola campo por campo—, y toda obra cuya propiedad no tiene punto lo dice y ofrece fijarlo ahí mismo, tanto en su alta como en su tab Detalle."
 apps:
   - mobile
@@ -16,10 +16,10 @@ domain:
   - cliente
 frente: campo
 created: 2026-09-22
-updated: 2026-09-22
+updated: 2026-09-23
 tags:
   - spec
-  - spec/en-implementacion
+  - spec/implementado
   - mobile
 ---
 
@@ -481,6 +481,7 @@ que alguien se olvidó.
 
 | Fecha | Estado | Nota |
 |-------|--------|------|
+| 2026-09-23 | implementado | **PR #50 mergeado.** Los 40 criterios cumplidos, 499 tests en el móvil y `openapi.json` sin cambios, que era criterio del spec: el contrato ya aceptaba el punto al crear. Nació como un arreglo de flujo —el mapa solo se abría corrigiendo una propiedad ya creada— y creció a cinco tramos, los cuatro últimos salidos de probar la app en un teléfono real |
 | 2026-09-22 | en-implementacion | `code-reviewer`, segunda pasada del quinto tramo: **LISTO PARA PR**, sin hallazgos abiertos ni nuevos. Verificó además que reconstruir los dos archivos de test —los trunqué por error al editarlos— no perdió ningún caso ni debilitó ninguna aserción. **Los 40 criterios marcados; queda el commit, el PR y el merge, que hace @jaca.** Al mergear, este spec pasa a Implementado y el BOARD lo refleja en el mismo acto |
 | 2026-09-22 | en-implementacion | `code-reviewer` sobre el quinto tramo: **un GRAVE**, arreglado. Aceptar la comparación solo mutaba el formulario abierto: cerrar la hoja sin tocar «Guardar» dejaba el punto nuevo sincronizado y la dirección vieja intacta, que es exactamente el bug que el tramo venía a resolver. Ahora escribe y encola en el acto. Con él, dos MEDIO: faltaba el número de búsqueda y el gate del botón que el tercer tramo ya había resuelto para el alta, y el país salía como código ISO de un lado y como nombre del otro. La carrera al leer el punto del stream se cerró de raíz: la pantalla del mapa devuelve el punto que guardó en vez de `true` |
 | 2026-09-22 | en-implementacion | Implementado el quinto tramo: `AddressFormControllers.diff` y `applyChanges`, `AddressChange` con lo anterior y lo nuevo, la hoja con su modo comparación y `SavedSiteLocationBlock.onMoved` avisando a la hoja de propiedad. 9 tests nuevos, suite en 496. Va a los dos revisores |
