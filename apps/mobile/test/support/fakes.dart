@@ -26,6 +26,8 @@ import 'package:snapline/api/models/auth_user_dto.dart';
 import 'package:snapline/api/models/auth_user_dto_locale.dart';
 import 'package:snapline/core/navigation/app_destination.dart';
 import 'package:snapline/core/location/device_location.dart';
+import 'package:snapline/core/location/device_geocoder.dart';
+import 'package:snapline/core/location/map_type_store.dart';
 import 'package:snapline/api/clients/media_client.dart';
 import 'package:snapline/core/network/api_client.dart';
 import 'package:snapline/core/theme/app_theme.dart';
@@ -80,6 +82,24 @@ class FakeLocaleStore implements LocaleStore {
 }
 
 /// El tema elegido, en memoria.
+class FakeMapTypeStore implements MapTypeStore {
+  FakeMapTypeStore([this.satellite = false, this.demora = Duration.zero]);
+
+  bool satellite;
+
+  /// Para probar que un toque no lo pisa una lectura que llega tarde.
+  final Duration demora;
+
+  @override
+  Future<bool> readSatellite() async {
+    if (demora > Duration.zero) await Future<void>.delayed(demora);
+    return satellite;
+  }
+
+  @override
+  Future<void> writeSatellite(bool value) async => satellite = value;
+}
+
 class FakeThemeStore implements ThemeStore {
   FakeThemeStore([this.mode]);
 
@@ -188,7 +208,6 @@ Session buildSession({
   );
 }
 
-
 /// Base en memoria: cada test arranca con la suya, vacía.
 AppDatabase testDatabase() => AppDatabase(NativeDatabase.memory());
 
@@ -219,6 +238,18 @@ class MediaClientNulo implements MediaClient {
       throw UnimplementedError('el test no debería llamar al API de media');
 }
 
+class _GeocoderNulo implements DeviceGeocoder {
+  const _GeocoderNulo();
+
+  @override
+  Future<GeocodedAddress?> fromCoordinates(double lat, double lng) async =>
+      null;
+
+  @override
+  Future<({double lat, double lng})?> searchAddress(String address) async =>
+      null;
+}
+
 class _CamaraNula implements PhotoCapture {
   @override
   Future<String?> takePhoto() async => null;
@@ -239,12 +270,17 @@ Widget testApp({
   LocaleStore? localeStore,
   ThemeStore? themeStore,
   DeviceLocation? deviceLocation,
+  DeviceGeocoder? deviceGeocoder,
   PhotoCapture? photoCapture,
 }) {
   return ProviderScope(
     overrides: [
       if (deviceLocation != null)
         deviceLocationProvider.overrideWithValue(deviceLocation),
+      // Siempre falso, como la cámara: el real es un canal de plataforma.
+      deviceGeocoderProvider.overrideWithValue(
+        deviceGeocoder ?? const _GeocoderNulo(),
+      ),
       // Siempre con cámara falsa: la real es un canal de plataforma que en un
       // test cuelga para siempre bajo el reloj falso.
       photoCaptureProvider.overrideWithValue(photoCapture ?? _CamaraNula()),
@@ -262,6 +298,7 @@ Widget testApp({
       connectivityProvider.overrideWith((ref) => Stream.value(true)),
       connectivityWatcherProvider.overrideWithValue(const FakeConnectivity()),
       themeStoreProvider.overrideWithValue(themeStore ?? FakeThemeStore()),
+      mapTypeStoreProvider.overrideWithValue(FakeMapTypeStore()),
     ],
     child: const SnaplineApp(),
   );
@@ -314,6 +351,8 @@ Future<void> seedProject(
   ProjectStatus status = ProjectStatus.inProgress,
   String line1 = '412 Ellsworth Dr',
   String city = 'Silver Spring',
+  double? siteLat,
+  double? siteLng,
   DateTime? createdAt,
   SyncStatus syncStatus = SyncStatus.synced,
 }) async {
@@ -321,50 +360,57 @@ Future<void> seedProject(
   final customerId = 'c-$id';
   final siteId = 's-$id';
 
-  await db.into(db.customers).insertOnConflictUpdate(
-    CustomersCompanion.insert(
-      id: customerId,
-      companyId: 'c1',
-      updatedAt: ahora,
-      displayName: customerName,
-      syncStatus: const Value(SyncStatus.synced),
-    ),
-  );
-  await db.into(db.sites).insertOnConflictUpdate(
-    SitesCompanion.insert(
-      id: siteId,
-      companyId: 'c1',
-      updatedAt: ahora,
-      customerId: customerId,
-      // Los seis campos, no tres: `AddressDto` exige `postalCode`, así que una
-      // dirección incompleta la descartaba `AddressJson.decode` y la propiedad
-      // salía vacía en toda la app — con los tests pasando igual.
-      address: jsonEncode({
-        'line1': line1,
-        'city': city,
-        'state': 'MD',
-        'postalCode': '20910',
-        'country': 'US',
-      }),
-      syncStatus: const Value(SyncStatus.synced),
-    ),
-  );
-  await db.into(db.projects).insertOnConflictUpdate(
-    ProjectsCompanion.insert(
-      id: id,
-      companyId: 'c1',
-      updatedAt: ahora,
-      customerId: customerId,
-      siteId: siteId,
-      name: name,
-      status: status.json!,
-      clientVisibilityMode: 'STAGES',
-      createdAt: Value(createdAt),
-      syncStatus: Value(syncStatus),
-    ),
-  );
+  await db
+      .into(db.customers)
+      .insertOnConflictUpdate(
+        CustomersCompanion.insert(
+          id: customerId,
+          companyId: 'c1',
+          updatedAt: ahora,
+          displayName: customerName,
+          syncStatus: const Value(SyncStatus.synced),
+        ),
+      );
+  await db
+      .into(db.sites)
+      .insertOnConflictUpdate(
+        SitesCompanion.insert(
+          id: siteId,
+          companyId: 'c1',
+          updatedAt: ahora,
+          customerId: customerId,
+          // Los seis campos, no tres: `AddressDto` exige `postalCode`, así que una
+          // dirección incompleta la descartaba `AddressJson.decode` y la propiedad
+          // salía vacía en toda la app — con los tests pasando igual.
+          address: jsonEncode({
+            'line1': line1,
+            'city': city,
+            'state': 'MD',
+            'postalCode': '20910',
+            'country': 'US',
+          }),
+          lat: Value(siteLat),
+          lng: Value(siteLng),
+          syncStatus: const Value(SyncStatus.synced),
+        ),
+      );
+  await db
+      .into(db.projects)
+      .insertOnConflictUpdate(
+        ProjectsCompanion.insert(
+          id: id,
+          companyId: 'c1',
+          updatedAt: ahora,
+          customerId: customerId,
+          siteId: siteId,
+          name: name,
+          status: status.json!,
+          clientVisibilityMode: 'STAGES',
+          createdAt: Value(createdAt),
+          syncStatus: Value(syncStatus),
+        ),
+      );
 }
-
 
 /// Siembra un cliente como si hubiera bajado del servidor, con su propiedad
 /// opcional. `SYNCED`, que es como entra lo que ya está allá.
@@ -376,40 +422,48 @@ Future<void> seedCustomer(
   String? phone,
   String? email,
   String? siteLine1,
+  double? siteLat,
+  double? siteLng,
   SyncStatus syncStatus = SyncStatus.synced,
 }) async {
   final ahora = DateTime.now();
 
-  await db.into(db.customers).insertOnConflictUpdate(
-    CustomersCompanion.insert(
-      id: id,
-      companyId: 'c1',
-      updatedAt: ahora,
-      displayName: displayName,
-      companyName: Value(companyName),
-      phone: Value(phone),
-      email: Value(email),
-      syncStatus: Value(syncStatus),
-    ),
-  );
+  await db
+      .into(db.customers)
+      .insertOnConflictUpdate(
+        CustomersCompanion.insert(
+          id: id,
+          companyId: 'c1',
+          updatedAt: ahora,
+          displayName: displayName,
+          companyName: Value(companyName),
+          phone: Value(phone),
+          email: Value(email),
+          syncStatus: Value(syncStatus),
+        ),
+      );
 
   if (siteLine1 != null) {
-    await db.into(db.sites).insertOnConflictUpdate(
-      SitesCompanion.insert(
-        id: 's-$id',
-        companyId: 'c1',
-        updatedAt: ahora,
-        customerId: id,
-        address: jsonEncode({
-          'line1': siteLine1,
-          'city': 'Silver Spring',
-          'state': 'MD',
-          'postalCode': '20910',
-          'country': 'US',
-        }),
-        syncStatus: Value(syncStatus),
-      ),
-    );
+    await db
+        .into(db.sites)
+        .insertOnConflictUpdate(
+          SitesCompanion.insert(
+            id: 's-$id',
+            companyId: 'c1',
+            updatedAt: ahora,
+            customerId: id,
+            address: jsonEncode({
+              'line1': siteLine1,
+              'city': 'Silver Spring',
+              'state': 'MD',
+              'postalCode': '20910',
+              'country': 'US',
+            }),
+            lat: Value(siteLat),
+            lng: Value(siteLng),
+            syncStatus: Value(syncStatus),
+          ),
+        );
   }
 }
 

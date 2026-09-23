@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
+import '../../core/location/device_geocoder.dart';
 import '../../core/location/device_location.dart';
+import '../../core/location/map_type_store.dart';
 import '../../core/theme/theme_extensions.dart';
 import '../../core/widgets/field_action_button.dart';
 import '../../core/widgets/status_chip.dart';
@@ -25,14 +27,54 @@ const _radioPaso = 25;
 /// continente.
 const _centroPorDefecto = LatLng(39.0458, -76.6413);
 
+/// Lo que la pantalla devuelve en modo elegir: el punto y el radio, sin haber
+/// escrito nada. Quien la abrió decide cuándo y con qué se guardan.
+class SiteLocationResult {
+  const SiteLocationResult({
+    required this.lat,
+    required this.lng,
+    this.geofenceRadiusM,
+  });
+
+  final double lat;
+  final double lng;
+  final int? geofenceRadiusM;
+}
+
 /// Fija el punto y el radio de la geocerca de una propiedad.
 ///
 /// Es pantalla completa y no una hoja: el punto se elige arrastrando con el
 /// pulgar y necesita el ancho.
+///
+/// Dos modos con la misma pantalla. Con [site], guarda contra la propiedad y
+/// vuelve con `true`. Con [SiteLocationScreen.pick] la propiedad todavía no
+/// existe —es el alta—, así que no escribe: vuelve con un [SiteLocationResult]
+/// y la hoja lo guarda junto con la dirección.
 class SiteLocationScreen extends ConsumerStatefulWidget {
-  const SiteLocationScreen({super.key, required this.site});
+  SiteLocationScreen({super.key, required SiteSummary this.site})
+    : address = site.oneLine,
+      initialLat = site.lat,
+      initialLng = site.lng,
+      initialRadiusM = site.geofenceRadiusM;
 
-  final SiteSummary site;
+  const SiteLocationScreen.pick({
+    super.key,
+    required this.address,
+    this.initialLat,
+    this.initialLng,
+    this.initialRadiusM,
+  }) : site = null;
+
+  final SiteSummary? site;
+
+  /// La dirección que se muestra bajo el mapa. En el alta es la que está escrita
+  /// en la hoja en ese momento, completa o no.
+  final String address;
+  final double? initialLat;
+  final double? initialLng;
+  final int? initialRadiusM;
+
+  bool get picks => site == null;
 
   @override
   ConsumerState<SiteLocationScreen> createState() => _SiteLocationScreenState();
@@ -45,6 +87,10 @@ class _SiteLocationScreenState extends ConsumerState<SiteLocationScreen> {
   bool _buscandoUbicacion = false;
   LocationFailure? _falloUbicacion;
 
+  final _busqueda = TextEditingController();
+  bool _buscandoDireccion = false;
+  bool _sinResultado = false;
+
   /// `initialCameraPosition` solo se aplica al crear el mapa, así que mover el
   /// marcador no mueve la vista. Sin este controlador, "usar mi ubicación" pone
   /// el punto donde estás y te deja mirando el otro lado del continente.
@@ -53,16 +99,47 @@ class _SiteLocationScreenState extends ConsumerState<SiteLocationScreen> {
   @override
   void initState() {
     super.initState();
-    if (widget.site.hasLocation) {
-      _punto = LatLng(widget.site.lat!, widget.site.lng!);
-    }
-    _radio = widget.site.geofenceRadiusM?.toDouble();
+    final lat = widget.initialLat;
+    final lng = widget.initialLng;
+    if (lat != null && lng != null) _punto = LatLng(lat, lng);
+    _radio = widget.initialRadiusM?.toDouble();
   }
 
   @override
   void dispose() {
+    _busqueda.dispose();
     _mapa?.dispose();
     super.dispose();
+  }
+
+  /// Lleva la cámara a la dirección escrita. **No fija el punto**: una
+  /// dirección geocodificada cae en el centro de la manzana, y acá el punto es
+  /// la geocerca (ADR-0012).
+  Future<void> _buscarDireccion() async {
+    final texto = _busqueda.text.trim();
+    if (texto.isEmpty || _buscandoDireccion) return;
+
+    FocusManager.instance.primaryFocus?.unfocus();
+    setState(() {
+      _buscandoDireccion = true;
+      _sinResultado = false;
+    });
+
+    ({double lat, double lng})? donde;
+    try {
+      donde = await ref.read(deviceGeocoderProvider).searchAddress(texto);
+    } finally {
+      if (mounted) setState(() => _buscandoDireccion = false);
+    }
+    if (!mounted) return;
+
+    if (donde == null) {
+      setState(() => _sinResultado = true);
+      return;
+    }
+    await _mapa?.animateCamera(
+      CameraUpdate.newLatLngZoom(LatLng(donde.lat, donde.lng), 17),
+    );
   }
 
   Future<void> _usarMiUbicacion() async {
@@ -94,12 +171,24 @@ class _SiteLocationScreenState extends ConsumerState<SiteLocationScreen> {
     final punto = _punto;
     if (punto == null || _guardando) return;
 
+    final site = widget.site;
+    if (site == null) {
+      Navigator.of(context).pop(
+        SiteLocationResult(
+          lat: punto.latitude,
+          lng: punto.longitude,
+          geofenceRadiusM: _radio?.round(),
+        ),
+      );
+      return;
+    }
+
     setState(() => _guardando = true);
     try {
       await ref
           .read(customerRepositoryProvider)
           .setSiteLocation(
-            widget.site.id,
+            site.id,
             lat: punto.latitude,
             lng: punto.longitude,
             geofenceRadiusM: _radio?.round(),
@@ -111,7 +200,15 @@ class _SiteLocationScreenState extends ConsumerState<SiteLocationScreen> {
     }
 
     if (!mounted) return;
-    Navigator.of(context).pop(true);
+    // Devuelve el punto y no `true`: quien la abrió lo necesita exacto, y
+    // leerlo del stream justo después abre una carrera con la notificación.
+    Navigator.of(context).pop(
+      SiteLocationResult(
+        lat: punto.latitude,
+        lng: punto.longitude,
+        geofenceRadiusM: _radio?.round(),
+      ),
+    );
   }
 
   @override
@@ -119,15 +216,30 @@ class _SiteLocationScreenState extends ConsumerState<SiteLocationScreen> {
     final l10n = AppLocalizations.of(context);
     final hayRed = ref.watch(connectivityProvider).value ?? true;
     final radioDibujado = _radio ?? _radioMin * 2;
+    final satelite = ref.watch(satelliteMapProvider);
 
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.siteLocationTitle)),
+      appBar: AppBar(
+        title: Text(l10n.siteLocationTitle),
+        actions: [
+          // Híbrido y no satélite puro: sin los nombres de las calles la foto
+          // aérea no ubica a nadie.
+          IconButton(
+            icon: Icon(satelite ? Icons.map_outlined : Icons.satellite_alt),
+            tooltip: satelite
+                ? l10n.siteLocationStandardMap
+                : l10n.siteLocationSatellite,
+            onPressed: () => ref.read(satelliteMapProvider.notifier).toggle(),
+          ),
+        ],
+      ),
       body: Column(
         children: [
           Expanded(
             child: Stack(
               children: [
                 GoogleMap(
+                  mapType: satelite ? MapType.hybrid : MapType.normal,
                   initialCameraPosition: CameraPosition(
                     target: _punto ?? _centroPorDefecto,
                     zoom: _punto == null ? 9 : 17,
@@ -150,7 +262,9 @@ class _SiteLocationScreenState extends ConsumerState<SiteLocationScreen> {
                         circleId: const CircleId('geofence'),
                         center: _punto!,
                         radius: radioDibujado,
-                        fillColor: context.colors.primary.withValues(alpha: 0.12),
+                        fillColor: context.colors.primary.withValues(
+                          alpha: 0.12,
+                        ),
                         strokeColor: context.colors.primary,
                         strokeWidth: 2,
                       ),
@@ -158,21 +272,37 @@ class _SiteLocationScreenState extends ConsumerState<SiteLocationScreen> {
                   myLocationButtonEnabled: false,
                   zoomControlsEnabled: false,
                 ),
-                if (!hayRed || _falloUbicacion != null)
-                  Positioned(
-                    left: context.spacing.lg,
-                    right: context.spacing.lg,
-                    top: context.spacing.lg,
-                    child: _Aviso(
-                      hayRed: hayRed,
-                      fallo: _falloUbicacion,
-                    ),
+                Positioned(
+                  left: context.spacing.lg,
+                  right: context.spacing.lg,
+                  top: context.spacing.lg,
+                  child: Column(
+                    children: [
+                      _Buscador(
+                        controller: _busqueda,
+                        buscando: _buscandoDireccion,
+                        onSubmit: _buscarDireccion,
+                      ),
+                      if (_sinResultado) ...[
+                        SizedBox(height: context.spacing.sm),
+                        StatusChip(
+                          tone: StatusTone.warning,
+                          label: l10n.siteLocationSearchEmpty,
+                          expand: true,
+                        ),
+                      ],
+                      if (!hayRed || _falloUbicacion != null) ...[
+                        SizedBox(height: context.spacing.sm),
+                        _Aviso(hayRed: hayRed, fallo: _falloUbicacion),
+                      ],
+                    ],
                   ),
+                ),
               ],
             ),
           ),
           _Controles(
-            direccion: widget.site.oneLine,
+            direccion: widget.address,
             punto: _punto,
             radio: _radio,
             guardando: _guardando,
@@ -182,6 +312,68 @@ class _SiteLocationScreenState extends ConsumerState<SiteLocationScreen> {
             onGuardar: _guardar,
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Buscar una dirección para mover la cámara.
+///
+/// Sobre el mapa y no en la barra: es una ayuda para encontrar la zona, no la
+/// acción de la pantalla, y acá queda junto a lo que modifica.
+class _Buscador extends StatelessWidget {
+  const _Buscador({
+    required this.controller,
+    required this.buscando,
+    required this.onSubmit,
+  });
+
+  final TextEditingController controller;
+  final bool buscando;
+  final VoidCallback onSubmit;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final spacing = context.spacing;
+
+    // Superficie con borde y no elevación: es la forma que usa el resto de la
+    // app, y sobre el mapa hace falta el fondo opaco igual.
+    return Material(
+      borderRadius: BorderRadius.circular(spacing.radiusMd),
+      color: context.colors.surface,
+      child: Container(
+        decoration: BoxDecoration(
+          border: Border.all(color: context.colors.outline),
+          borderRadius: BorderRadius.circular(spacing.radiusMd),
+        ),
+        child: TextField(
+          controller: controller,
+          textInputAction: TextInputAction.search,
+          onSubmitted: (_) => onSubmit(),
+          decoration: InputDecoration(
+            hintText: l10n.siteLocationSearch,
+            border: InputBorder.none,
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: spacing.md,
+              vertical: spacing.md,
+            ),
+            prefixIcon: const Icon(Icons.search),
+            suffixIcon: buscando
+                ? Padding(
+                    padding: EdgeInsets.all(spacing.md),
+                    child: SizedBox.square(
+                      dimension: spacing.md,
+                      child: const CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  )
+                : IconButton(
+                    icon: const Icon(Icons.arrow_forward),
+                    tooltip: l10n.siteLocationSearch,
+                    onPressed: onSubmit,
+                  ),
+          ),
+        ),
       ),
     );
   }
@@ -207,11 +399,7 @@ class _Aviso extends StatelessWidget {
       null => l10n.siteLocationNoNetwork,
     };
 
-    return StatusChip(
-      tone: StatusTone.warning,
-      label: mensaje,
-      expand: true,
-    );
+    return StatusChip(tone: StatusTone.warning, label: mensaje, expand: true);
   }
 }
 

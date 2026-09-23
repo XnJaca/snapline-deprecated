@@ -7,6 +7,7 @@ import '../../core/widgets/labeled_value.dart';
 import '../../core/widgets/section_header.dart';
 import '../../core/widgets/status_chip.dart';
 import '../../api/models/project_status.dart';
+import '../../data/repositories/customer_repository.dart';
 import '../../data/repositories/project_repository.dart';
 import '../../l10n/app_localizations.dart';
 import 'project_form_screen.dart';
@@ -69,8 +70,13 @@ class ProjectDetailsTab extends ConsumerWidget {
         SizedBox(height: spacing.md),
         _Ficha(
           children: [
-            LabeledValue(label: l10n.projectFieldCustomer, value: obra.customerName),
+            LabeledValue(
+              label: l10n.projectFieldCustomer,
+              value: obra.customerName,
+            ),
             LabeledValue(label: l10n.projectFieldSite, value: obra.site),
+            if (obra.siteSummary case final sitio?)
+              _PuntoDeLaPropiedad(site: sitio),
           ],
         ),
         SizedBox(height: spacing.lg),
@@ -90,6 +96,47 @@ class ProjectDetailsTab extends ConsumerWidget {
           ],
         ),
       ],
+    );
+  }
+}
+
+/// Si la propiedad de la obra tiene punto, y la salida de fijarlo si no.
+class _PuntoDeLaPropiedad extends StatelessWidget {
+  const _PuntoDeLaPropiedad({required this.site});
+
+  final SiteSummary site;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final spacing = context.spacing;
+    final colors = context.colors;
+
+    if (site.hasLocation) {
+      return LabeledValue(
+        label: l10n.siteLocationSection,
+        value: l10n.siteLocationCoords(
+          site.lat!.toStringAsFixed(5),
+          site.lng!.toStringAsFixed(5),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: spacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            l10n.siteLocationSection,
+            style: context.texts.bodySmall?.copyWith(
+              color: colors.onSurfaceVariant,
+            ),
+          ),
+          SizedBox(height: spacing.xs),
+          SiteWithoutLocationNotice(site: site),
+        ],
+      ),
     );
   }
 }
@@ -135,8 +182,9 @@ class _ModoDelCliente extends ConsumerWidget {
             padding: EdgeInsets.only(top: spacing.sm),
             child: Text(
               l10n.projectVisibilityModeHint,
-              style: context.texts.bodySmall
-                  ?.copyWith(color: colors.onSurfaceVariant),
+              style: context.texts.bodySmall?.copyWith(
+                color: colors.onSurfaceVariant,
+              ),
             ),
           ),
       ],
@@ -272,7 +320,10 @@ class _Ficha extends StatelessWidget {
         borderRadius: BorderRadius.circular(spacing.radiusMd),
       ),
       padding: EdgeInsets.all(spacing.md),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: children),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: children,
+      ),
     );
   }
 }

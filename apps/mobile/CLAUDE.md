@@ -15,6 +15,7 @@ mezclan. No aparece en `pnpm-workspace.yaml` y no la toca `turbo`.
 | `flutter_country_selector` | Viene con el anterior; se usa directo para el país de una dirección y para los nombres de país traducidos. Una sola lista de países en la app |
 | `google_maps_flutter` | El mapa donde se fija el punto de una propiedad. Elegido en ADR-0012: los SDK móviles son gratis y sin límite, y los tiles públicos de OSM no se pueden usar comercialmente |
 | `geolocator` | Lee la posición **una sola vez**, al tocar "usar mi ubicación". No se usa su stream: la visión descarta el tracking continuo |
+| `geocoding` | Del punto a la dirección, con el geocodificador **del teléfono**: sin llave ni SKU de Google. Rellena los campos vacíos al fijar el punto en el alta de una propiedad. Adenda de ADR-0012 |
 | `url_launcher` | Abre la dirección en la app de mapas del teléfono. Construir navegación adentro es lo que la visión descarta |
 
 Los dos se registran en `main.dart` vía `PhoneFieldLocalization.delegates`. Sin

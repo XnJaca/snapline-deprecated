@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../api/models/project_status.dart';
 import '../local/address_json.dart';
+import 'customer_repository.dart';
 import '../local/app_database.dart';
 import '../local/tables.dart';
 import '../sync/outbox.dart';
@@ -54,6 +55,7 @@ class ProjectDetail {
     required this.actualEndDate,
     required this.customerName,
     required this.site,
+    required this.siteSummary,
     required this.pending,
   });
 
@@ -73,6 +75,10 @@ class ProjectDetail {
   final DateTime? actualEndDate;
   final String customerName;
   final String site;
+
+  /// La propiedad entera, para saber si tiene punto y abrir el mapa desde la
+  /// obra. Nula solo si la fila no bajó todavía.
+  final SiteSummary? siteSummary;
   final bool pending;
 }
 
@@ -240,6 +246,7 @@ class ProjectRepository {
         actualEndDate: proyecto.actualEndDate,
         customerName: cliente?.displayName ?? '',
         site: AddressJson.oneLine(AddressJson.decode(sitio?.address)),
+        siteSummary: sitio == null ? null : SiteSummary.fromLocal(sitio),
         pending: proyecto.syncStatus != SyncStatus.synced,
       );
     });
@@ -256,26 +263,28 @@ class ProjectRepository {
     final cuando = occurredAt ?? DateTime.now();
 
     await _db.transaction(() async {
-      await _db.into(_db.projects).insert(
-        ProjectsCompanion.insert(
-          id: id,
-          // Lo pone el servidor al aplicar.
-          companyId: '',
-          updatedAt: cuando,
-          syncStatus: const Value(SyncStatus.pending),
-          customerId: input.customerId,
-          siteId: input.siteId,
-          name: input.name,
-          description: Value(input.description),
-          serviceType: Value(input.serviceType),
-          status: input.status.json!,
-          // Arranca en etapas, y pasar a avance es acción explícita: es lo que el
-          // cliente final ve de la obra, no un default de formulario.
-          clientVisibilityMode: initialVisibilityMode,
-          startDate: Value(input.startDate),
-          targetEndDate: Value(input.targetEndDate),
-        ),
-      );
+      await _db
+          .into(_db.projects)
+          .insert(
+            ProjectsCompanion.insert(
+              id: id,
+              // Lo pone el servidor al aplicar.
+              companyId: '',
+              updatedAt: cuando,
+              syncStatus: const Value(SyncStatus.pending),
+              customerId: input.customerId,
+              siteId: input.siteId,
+              name: input.name,
+              description: Value(input.description),
+              serviceType: Value(input.serviceType),
+              status: input.status.json!,
+              // Arranca en etapas, y pasar a avance es acción explícita: es lo que el
+              // cliente final ve de la obra, no un default de formulario.
+              clientVisibilityMode: initialVisibilityMode,
+              startDate: Value(input.startDate),
+              targetEndDate: Value(input.targetEndDate),
+            ),
+          );
       await _outbox.enqueue(
         type: SyncOp.projectCreate,
         targetId: id,
@@ -293,7 +302,11 @@ class ProjectRepository {
   ///
   /// **El estado no se toca acá** — va por [changeStatus], porque es lo único de
   /// `project` que no es última escritura gana.
-  Future<void> update(String id, ProjectInput input, {DateTime? occurredAt}) async {
+  Future<void> update(
+    String id,
+    ProjectInput input, {
+    DateTime? occurredAt,
+  }) async {
     final cuando = occurredAt ?? DateTime.now();
     final payload = input.toPayload()
       ..remove('status')
